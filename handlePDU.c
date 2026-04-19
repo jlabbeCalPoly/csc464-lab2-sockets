@@ -36,7 +36,6 @@ int recvPDU(int clientSocket, uint8_t * dataBuffer, int bufferSize) {
     uint8_t lengthBuffer[2];
     int recvHeaderBytes = 0;
     if ((recvHeaderBytes = safeRecv(clientSocket, lengthBuffer, 2, MSG_WAITALL)) <= 0) {
-        printf("received header bytes is <= 0\n");
         return recvHeaderBytes;
     };
     uint16_t lengthNetwork;
@@ -44,7 +43,7 @@ int recvPDU(int clientSocket, uint8_t * dataBuffer, int bufferSize) {
     uint16_t lengthHost = ntohs(lengthNetwork);
 
     // debug
-    printf("received header length is: %d\n", lengthHost);
+    // printf("received header length is: %d\n", lengthHost);
      
     // Make sure the data length fits within the dataBuffer size
     if (bufferSize < lengthHost) {
@@ -52,11 +51,7 @@ int recvPDU(int clientSocket, uint8_t * dataBuffer, int bufferSize) {
         exit(-1);
     }
 
-    // Second recv(), get the payload
+    // Second recv(), get the payload (and print the payload contents, if any)
     int recvPayloadBytes = safeRecv(clientSocket, dataBuffer, lengthHost - 2, MSG_WAITALL);
-
-    // debug
-    printf("received payload length is: %d\n", recvPayloadBytes);
-
     return recvPayloadBytes;
 }

@@ -24,6 +24,7 @@
 #include "networks.h"
 #include "safeUtil.h"
 #include "handlePDU.h"
+#include "pollLib.h"
 
 #define MAXBUF 1024
 #define DEBUG_FLAG 1
@@ -31,6 +32,42 @@
 void sendToServer(int socketNum);
 int readFromStdin(uint8_t * buffer);
 void checkArgs(int argc, char * argv[]);
+
+void processMsgFromServer(int socketNum) {
+	uint8_t dataBuffer[MAXBUF];
+	int messageLen = 0;
+	
+	//now get the data from the client_socket (if any)
+	if ((messageLen = safeRecv(socketNum, dataBuffer, MAXBUF, 0)) > 0) {
+		printf("Socket %d: Message received, length: %d Data: %s\n", socketNum, messageLen, dataBuffer);
+	} else {
+		// Server terminated, so exit the program
+		printf("Server terminated");
+		exit(0);
+	}
+}
+
+void processStdin(int socketNum) {
+	sendToServer(socketNum);
+}
+
+void clientControl(int socketNum) {
+	//setup and add to poll set
+	setupPollSet();
+	addToPollSet(STDIN_FILENO);
+	addToPollSet(socketNum);
+
+	while (1) {
+		int socket = pollCall(0);
+		if (socket != -1) {
+			if (socket == STDIN_FILENO) {
+				processStdin(socketNum);
+			} else {
+				processMsgFromServer(socketNum);
+			}
+		}
+	}
+}
 
 int main(int argc, char * argv[])
 {
@@ -40,9 +77,10 @@ int main(int argc, char * argv[])
 
 	/* set up the TCP Client socket  */
 	socketNum = tcpClientSetup(argv[1], argv[2], DEBUG_FLAG);
-	
-	sendToServer(socketNum);
-	
+
+	clientControl(socketNum);
+
+	close(STDIN_FILENO);
 	close(socketNum);
 	
 	return 0;
@@ -60,7 +98,7 @@ void sendToServer(int socketNum)
 	sent = sendPDU(socketNum, buffer, sendLen);
 	if (sent < 0)
 	{
-		perror("send call");
+		perror("Server has terminated");
 		exit(-1);
 	}
 
